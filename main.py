@@ -1,6 +1,36 @@
+# pylint: disable=broad-except
 import requests
 import os
 import json
+from kubernetes import client, config, watch
+
+
+def event_to_data(event):
+    return event
+
+
+def event_handler(event):
+    raw_data = event_to_data(event)
+    splunk_processed_data = splunk_data_processor(raw_data)
+    elk_processed_data = elk_data_processor(raw_data)
+    sender(splunk_processed_data, elk_processed_data)
+
+
+def listener():
+    # Configs can be set in Configuration class directly or using helper utility
+    config.load_kube_config()
+
+    v1 = client.CoreV1Api()
+    # print("Listing pods with their IPs:")
+    # ret = v1.list_pod_for_all_namespaces(watch=False)
+    # for i in ret.items:
+    #         if(i.metadata.namespace=="ingress-nginx"):
+    #                 print(f'{i.status}, {i.metadata.namespace},{i.metadata.name}')
+
+    w = watch.Watch()
+    for e in w.stream(v1.read_namespaced_pod_log, name="ingress-controller-ingress-nginx-controller-746658c4b8-7cntg", namespace="ingress-nginx"):
+        print(e)
+        event_handler(e)
 
 
 def elk_data_to_json(elk_processed_data=None):
@@ -56,11 +86,7 @@ def sender(splunk_processed_data=None, elk_processed_data=None):
 
 def main():
     print("Lets go!")
-    splunk_raw_data = None
-    elk_raw_data = None
-    splunk_processed_data = splunk_data_processor(splunk_raw_data)
-    elk_processed_data = elk_data_processor(elk_raw_data)
-    sender(splunk_processed_data,elk_processed_data)
+    listener()
 
 
 if __name__ == '__main__':
