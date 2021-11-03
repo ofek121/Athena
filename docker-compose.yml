@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  athena:
+    image: athena:latest
+    build: .
+    env_file:
+      - ./athena.env
+    ports:
+      - 8080:8080
